@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Connect Four Game</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            margin: 0;
+            padding: 0;
+        }
+
+        /* Centered Title */
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-top: 20px;
+        }
+
+        /* Control Panel */
+        .control-panel {
+            margin: 20px auto;
+            padding: 15px;
+            text-align: center;
+            background-color: white;
+            border-radius: 10px;
+            width: 80%;
+            max-width: 600px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .control-panel label {
+            margin-right: 10px;
+        }
+
+        .control-panel select {
+            margin-right: 20px;
+            padding: 5px;
+        }
+
+        /* Game Section */
+        .game-section {
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            margin: 20px;
+        }
+
+        /* Player Info Panel */
+        .player-info {
+            width: 250px;
+            padding: 15px;
+            background-color: white;
+            border-radius: 10px;
+            margin-right: 20px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .player {
+            margin-bottom: 20px;
+        }
+
+        .player span {
+            font-size: 18px;
+            margin-left: 10px;
+        }
+
+        .player-color {
+            display: inline-block;
+            width: 15px;
+            height: 15px;
+            margin-left: 10px;
+            vertical-align: middle;
+            border: 1px solid #333;
+            background-color: transparent; /* ✅ FIXED */
+        }
+
+        /* Game Board */
+        .game-board {
+            display: grid;
+            grid-template-columns: repeat(9, 50px);
+            gap: 5px;
+            padding: 10px;
+            background-color: #333;
+            border-radius: 10px;
+        }
+
+        .cell {
+            width: 50px;
+            height: 50px;
+            background-color: #fff;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .cell:hover {
+            background-color: #e0e0e0;
+        }
+
+        .cell.red {
+            background-color: red;
+        }
+
+        .cell.yellow {
+            background-color: yellow;
+        }
+
+        /* Turn Indicator */
+        .turn-indicator {
+            text-align: center;
+            font-size: 20px;
+            margin-top: 10px;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Connect Four</h1>
+
+    <div class="control-panel">
+        <label for="rows">Rows:</label>
+        <select id="rows">
+            <option value="6">6 Rows</option>
+            <option value="7">7 Rows</option>
+            <option value="8">8 Rows</option>
+            <option value="9">9 Rows</option>
+            <option value="10">10 Rows</option>
+        </select>
+
+        <label for="columns">Columns:</label>
+        <select id="columns">
+            <option value="7">7 Columns</option>
+            <option value="8">8 Columns</option>
+            <option value="9" selected>9 Columns</option>
+            <option value="10">10 Columns</option>
+        </select>
+
+        <button onclick="startGame()">Start Game</button>
+    </div>
+
+    <div class="turn-indicator">
+        Turn: <span id="currentPlayer">Player 1</span>
+    </div>
+
+    <div class="game-section">
+        <div class="player-info">
+            <div class="player">
+                <strong>Player 1</strong>
+                <span id="player1Color" class="player-color"></span> 
+                <span id="player1Name"></span>
+            </div>
+            <div class="player">
+                <strong>Player 2</strong>
+                <span id="player2Color" class="player-color"></span> 
+                <span id="player2Name"></span>
+            </div>
+        </div>
+
+        <div id="gameBoard" class="game-board"></div>
+    </div>
+
+    <script>
+        let rows = 6;
+        let columns = 9;
+        let currentPlayer = 1;
+        let board = [];
+
+        function startGame() {
+            rows = parseInt(document.getElementById('rows').value);
+            columns = parseInt(document.getElementById('columns').value);
+            
+            const player1Color = "red";
+            const player2Color = "yellow";
+
+            document.getElementById('player1Color').style.backgroundColor = player1Color;
+            document.getElementById('player2Color').style.backgroundColor = player2Color;
+
+            document.getElementById('player1Name').textContent = " - Red";
+            document.getElementById('player2Name').textContent = " - Yellow";
+
+            document.getElementById('currentPlayer').textContent = "Player 1";
+
+            board = [];
+            const gameBoard = document.getElementById('gameBoard');
+            gameBoard.style.gridTemplateColumns = `repeat(${columns}, 50px)`;
+            gameBoard.innerHTML = "";
+
+            for (let r = 0; r < rows; r++) {
+                board[r] = [];
+                for (let c = 0; c < columns; c++) {
+                    board[r][c] = null;
+
+                    const cell = document.createElement("div");
+                    cell.classList.add("cell");
+                    cell.dataset.row = r;
+                    cell.dataset.col = c;
+                    cell.onclick = () => handleClick(c);
+                    gameBoard.appendChild(cell);
+                }
+            }
+        }
+
+        function handleClick(col) {
+            for (let row = rows - 1; row >= 0; row--) {
+                if (!board[row][col]) {
+                    board[row][col] = currentPlayer;
+
+                    const cell = document.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`);
+                    cell.classList.add(currentPlayer === 1 ? "red" : "yellow");
+
+                    if (checkWin(row, col)) {
+                        alert(`Player ${currentPlayer} wins!`);
+                        startGame();
+                        return;
+                    }
+
+                    currentPlayer = currentPlayer === 1 ? 2 : 1;
+                    document.getElementById('currentPlayer').textContent = `Player ${currentPlayer}`;
+                    return;
+                }
+            }
+        }
+
+        function checkWin(row, col) {
+            const directions = [
+                { dr: 0, dc: 1 },
+                { dr: 1, dc: 0 },
+                { dr: 1, dc: 1 },
+                { dr: 1, dc: -1 }
+            ];
+
+            for (let d of directions) {
+                let count = 1;
+
+                count += countDirection(row, col, d.dr, d.dc);
+                count += countDirection(row, col, -d.dr, -d.dc);
+
+                if (count >= 4) return true;
+            }
+
+            return false;
+        }
+
+        function countDirection(row, col, dr, dc) {
+            let r = row + dr;
+            let c = col + dc;
+            let count = 0;
+
+            while (r >= 0 && r < rows && c >= 0 && c < columns && board[r][c] === currentPlayer) {
+                count++;
+                r += dr;
+                c += dc;
+            }
+
+            return count;
+        }
+    </script>
+
+</body>
+</html>
