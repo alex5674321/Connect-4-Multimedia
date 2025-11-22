@@ -1,5 +1,5 @@
 /* ===============================
-   CONFIGURACIÓN GENERAL
+   General Constants
 ================================ */
 const ROWS = 6;
 const COLS = 7;
@@ -10,7 +10,7 @@ let gameEnded = false;
 let scores = { 1: 0, 2: 0 };
 
 /* ===============================
-   ELEMENTOS DEL DOM
+   Elements Of The Game
 ================================ */
 const gridEl = document.getElementById("grid");
 const colBtnsEl = document.getElementById("colBtns");
@@ -27,7 +27,6 @@ const p2modeEl = document.getElementById("p2mode");
 const sw1 = document.getElementById("sw1");
 const sw2 = document.getElementById("sw2");
 
-/* Colores desde CSS */
 const color1 = getCSS("--player1");
 const color2 = getCSS("--player2");
 
@@ -36,7 +35,7 @@ function getCSS(varName) {
 }
 
 /* ===============================
-   INICIALIZACIÓN
+   Initialize Game
 ================================ */
 function startGame() {
   createEmptyBoard();
@@ -57,7 +56,7 @@ function createEmptyBoard() {
 }
 
 /* ===============================
-   RENDERIZADO DEL TABLERO
+   Board Rendering
 ================================ */
 function renderBoardStructure() {
   gridEl.innerHTML = "";
@@ -114,7 +113,7 @@ function getDisc(r, c) {
 }
 
 /* ===============================
-   LÓGICA DE JUEGO
+   Game Logic
 ================================ */
 function dropPiece(col, fromAI = false) {
   if (gameEnded) return;
@@ -168,9 +167,6 @@ function switchPlayer() {
   currentPlayer = currentPlayer === 1 ? 2 : 1;
 }
 
-/* ===============================
-   TURNO
-================================ */
 function updateTurnDisplay() {
   turnDotEl.style.background = currentPlayer === 1 ? color1 : color2;
   updateLabels();
@@ -183,7 +179,7 @@ function updateLabels() {
 }
 
 /* ===============================
-   MENSAJE FLOTANTE
+   Message
 ================================ */
 function showFloatingMessage(msg) {
   const div = document.createElement("div");
@@ -202,7 +198,7 @@ function showFloatingMessage(msg) {
 }
 
 /* ===============================
-   DETECCIÓN DE GANADOR
+   Winner Checking
 ================================ */
 function checkWinner(r, c, p) {
   const directions = [
@@ -233,7 +229,7 @@ function isBoardFull() {
 }
 
 /* ===============================
-   FIN DE PARTIDA
+   End of Game Handling
 ================================ */
 function handleWin(player) {
   gameEnded = true;
@@ -255,7 +251,7 @@ function updateScoreboard() {
 }
 
 /* ===============================
-   IA SIMPLE
+   IA (SIMPLE)
 ================================ */
 function aiMove() {
   if (gameEnded) return;
@@ -293,7 +289,7 @@ function findWinningMove(player, cols) {
 }
 
 /* ===============================
-   EVENTOS
+    Event Listeners
 ================================ */
 document.getElementById("newGame").onclick = startGame;
 document.getElementById("resetScore").onclick = () => {
@@ -304,15 +300,18 @@ document.getElementById("resetScore").onclick = () => {
 gridEl.onclick = (e) => {
   const cell = e.target.closest(".cell");
   if (!cell) return;
-  const col = [...cell.parentNode.children].indexOf(cell);
+
+  // Usar el atributo data-c de la celda
+  const col = parseInt(cell.querySelector(".disc").dataset.c);
   dropPiece(col);
 };
+
 
 window.onkeydown = (e) => {
   if (e.key >= "1" && e.key <= "7") dropPiece(parseInt(e.key) - 1);
 };
 
 /* ===============================
-   INICIAR EL JUEGO
+   Initialize Game On Load
 ================================ */
 startGame();
