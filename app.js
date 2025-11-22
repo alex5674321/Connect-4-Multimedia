@@ -1,201 +1,318 @@
-const ROWS=6, COLS=7;
-let board=[], currentPlayer=1, isGameOver=false, scores={1:0,2:0};
-const gridEl=document.getElementById('grid');
-const colBtnsEl=document.getElementById('colBtns');
-const turnNameEl=document.getElementById('turnName');
-const turnDot=document.getElementById('turnDot');
-const messageEl=document.getElementById('message');
-const score1El=document.getElementById('score1');
-const score2El=document.getElementById('score2');
-const name1El=document.getElementById('name1');
-const name2El=document.getElementById('name2');
-const label1El=document.getElementById('label1');
-const label2El=document.getElementById('label2');
-const p2mode=document.getElementById('p2mode');
-const sw1=document.getElementById('sw1');
-const sw2=document.getElementById('sw2');
-const color1=getComputedStyle(document.documentElement).getPropertyValue('--player1').trim();
-const color2=getComputedStyle(document.documentElement).getPropertyValue('--player2').trim();
+/* ===============================
+   CONFIGURACIÓN GENERAL
+================================ */
+const ROWS = 6;
+const COLS = 7;
 
-function initBoard(){
-  board=Array.from({length:ROWS},()=>Array(COLS).fill(0));
-  isGameOver=false; currentPlayer=1;
-  messageEl.textContent='';
-  renderGrid(); renderColButtons(); updateTurnUI(); loadScores(); syncLabels();
-  // set swatches (ensure visible)
+let board = [];
+let currentPlayer = 1;
+let gameEnded = false;
+let scores = { 1: 0, 2: 0 };
+
+/* ===============================
+   ELEMENTOS DEL DOM
+================================ */
+const gridEl = document.getElementById("grid");
+const colBtnsEl = document.getElementById("colBtns");
+const turnNameEl = document.getElementById("turnName");
+const turnDotEl = document.getElementById("turnDot");
+
+const name1El = document.getElementById("name1");
+const name2El = document.getElementById("name2");
+const label1El = document.getElementById("label1");
+const label2El = document.getElementById("label2");
+const score1El = document.getElementById("score1");
+const score2El = document.getElementById("score2");
+const p2modeEl = document.getElementById("p2mode");
+const sw1 = document.getElementById("sw1");
+const sw2 = document.getElementById("sw2");
+
+/* Colores desde CSS */
+const color1 = getCSS("--player1");
+const color2 = getCSS("--player2");
+
+function getCSS(varName) {
+  return getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+}
+
+/* ===============================
+   INICIALIZACIÓN
+================================ */
+function startGame() {
+  createEmptyBoard();
+  gameEnded = false;
+  currentPlayer = 1;
+
+  renderBoardStructure();
+  refreshBoardUI();
+  updateTurnDisplay();
+  updateLabels();
+
   sw1.style.background = color1;
   sw2.style.background = color2;
 }
 
-function syncLabels(){
-  label1El.textContent=name1El.value||'Player 1';
-  label2El.textContent=name2El.value||'Player 2';
-  turnNameEl.textContent=currentPlayer===1?(name1El.value||'Player 1'):(name2El.value||'Player 2');
+function createEmptyBoard() {
+  board = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
 }
 
-function renderGrid(){
-  gridEl.innerHTML='';
-  for(let r=0;r<ROWS;r++){
-    for(let c=0;c<COLS;c++){
-      const cell=document.createElement('div');
-      cell.className='cell';
-      cell.dataset.r=r; cell.dataset.c=c;
-      const disc=document.createElement('div');
-      disc.className='disc empty';
-      disc.dataset.r=r; disc.dataset.c=c;
+/* ===============================
+   RENDERIZADO DEL TABLERO
+================================ */
+function renderBoardStructure() {
+  gridEl.innerHTML = "";
+  colBtnsEl.innerHTML = "";
+  createColumnButtons();
+  createCells();
+}
+
+function createColumnButtons() {
+  for (let c = 0; c < COLS; c++) {
+    const btn = document.createElement("button");
+    btn.className = "col-button";
+    btn.textContent = c + 1;
+    btn.onclick = () => dropPiece(c);
+    colBtnsEl.appendChild(btn);
+  }
+}
+
+function createCells() {
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const cell = document.createElement("div");
+      cell.className = "cell";
+
+      const disc = document.createElement("div");
+      disc.className = "disc empty";
+      disc.dataset.r = r;
+      disc.dataset.c = c;
+
       cell.appendChild(disc);
       gridEl.appendChild(cell);
     }
   }
-  refreshDiscs();
 }
 
-function renderColButtons(){
-  colBtnsEl.innerHTML='';
-  for(let c=0;c<COLS;c++){
-    const b=document.createElement('button');
-    b.className='col-button';
-    b.textContent=c+1;
-    b.addEventListener('click', ()=>handleDrop(c));
-    colBtnsEl.appendChild(b);
-  }
-}
+function refreshBoardUI() {
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const disc = getDisc(r, c);
+      const value = board[r][c];
 
-function refreshDiscs(){
-  for(let r=0;r<ROWS;r++){
-    for(let c=0;c<COLS;c++){
-      const d=gridEl.querySelector(`.disc[data-r='${r}'][data-c='${c}']`);
-      if(!d) continue;
-      // remove any p1/p2/empty then apply correct class only
-      d.classList.remove('p1','p2','empty');
-      if(board[r][c]===0) d.classList.add('empty');
-      else if(board[r][c]===1) d.classList.add('p1');
-      else d.classList.add('p2');
-      // avoid inline background overrides so CSS controls colors
-      d.style.transform = 'translateY(0)';
-      d.style.background = '';
+      disc.className = "disc";
+      if (value === 0) disc.classList.add("empty");
+      if (value === 1) disc.classList.add("p1");
+      if (value === 2) disc.classList.add("p2");
+
+      disc.style.transform = "translateY(0)";
     }
   }
 }
 
-function handleDrop(c, byAI = false){
-  if(isGameOver) return;
-  // prevent human clicks when it's AI's turn; allow AI when byAI=true
-  if(currentPlayer===2 && p2mode.value==='ai' && !byAI) return;
-  // drop
-  for(let r=ROWS-1;r>=0;r--){
-    if(board[r][c]===0){
-      board[r][c]=currentPlayer;
-      animateDrop(r,c,currentPlayer);
-      setTimeout(()=>{
-        refreshDiscs();
-        if(checkWin(r,c,currentPlayer)) onWin(currentPlayer);
-        else if(checkDraw()) onDraw();
-        else{
-          currentPlayer = currentPlayer===1?2:1;
-          updateTurnUI();
-          // if AI's turn, trigger AI (only if it's now AI's turn)
-          if(currentPlayer===2 && p2mode.value==='ai' && !isGameOver) aiMove();
-        }
-      }, 260);
-      return;
-    }
+function getDisc(r, c) {
+  return gridEl.querySelector(`.disc[data-r="${r}"][data-c="${c}"]`);
+}
+
+/* ===============================
+   LÓGICA DE JUEGO
+================================ */
+function dropPiece(col, fromAI = false) {
+  if (gameEnded) return;
+  if (currentPlayer === 2 && p2modeEl.value === "ai" && !fromAI) return;
+
+  const row = findAvailableRow(col);
+  if (row === null) {
+    showFloatingMessage("Column full");
+    return;
   }
-  flashMessage('Column full');
+
+  board[row][col] = currentPlayer;
+  animateDrop(row, col);
+
+  setTimeout(() => {
+    refreshBoardUI();
+
+    if (checkWinner(row, col, currentPlayer)) {
+      handleWin(currentPlayer);
+    } else if (isBoardFull()) {
+      handleDraw();
+    } else {
+      switchPlayer();
+      updateTurnDisplay();
+
+      if (currentPlayer === 2 && p2modeEl.value === "ai") {
+        setTimeout(aiMove, 400);
+      }
+    }
+  }, 260);
 }
 
-function animateDrop(r,c,player){
-  const d=gridEl.querySelector(`.disc[data-r='${r}'][data-c='${c}']`);
-  if(!d) return;
-  d.classList.remove('empty');
-  d.classList.add(player===1?'p1':'p2');
-  // rely on CSS class for background — do not set inline background
-  d.style.transform='translateY(-150px)';
-  void d.offsetWidth;
-  setTimeout(()=> d.style.transform='translateY(0)', 10);
-}
-
-function updateTurnUI(){
-  turnDot.style.background=currentPlayer===1?color1:color2;
-  syncLabels();
-}
-
-function flashMessage(msg){ messageEl.textContent=msg; setTimeout(()=>{ if(messageEl.textContent===msg) messageEl.textContent=''; },1200); }
-function checkDraw(){ return board.every(r=>r.every(c=>c!==0)); }
-
-function inBounds(r,c){ return r>=0&&r<ROWS&&c>=0&&c<COLS; }
-
-function checkWin(r,c,p){
-  const dirs=[[0,1],[1,0],[1,1],[1,-1]];
-  for(const [dr,dc] of dirs){
-    let count=1;
-    let rr=r+dr, cc=c+dc;
-    while(inBounds(rr,cc) && board[rr][cc]===p){ count++; rr+=dr; cc+=dc; }
-    rr = r-dr; cc = c-dc;
-    while(inBounds(rr,cc) && board[rr][cc]===p){ count++; rr-=dr; cc-=dc; }
-    if(count>=4) return true;
+function findAvailableRow(col) {
+  for (let r = ROWS - 1; r >= 0; r--) {
+    if (board[r][col] === 0) return r;
   }
-  return false;
+  return null;
 }
 
-function onWin(p){
-  isGameOver=true;
-  flashMessage((p===1?(name1El.value||'Player 1'):(name2El.value||'Player 2'))+' wins!');
-  scores[p]++;
-  saveScores(); updateScoreboard();
+function animateDrop(r, c) {
+  const disc = getDisc(r, c);
+  disc.classList.remove("empty");
+  disc.classList.add(currentPlayer === 1 ? "p1" : "p2");
+
+  disc.style.transform = "translateY(-150px)";
+  disc.offsetWidth; // fuerza repaint
+  disc.style.transform = "translateY(0)";
 }
 
-function onDraw(){ isGameOver=true; flashMessage('Draw'); }
-
-function updateScoreboard(){ score1El.textContent=scores[1]; score2El.textContent=scores[2]; }
-function saveScores(){ try{ localStorage.setItem('connect4_scores',JSON.stringify(scores)); }catch(e){} }
-function loadScores(){ try{ const s=JSON.parse(localStorage.getItem('connect4_scores')); if(s && typeof s === 'object'){ scores = Object.assign({1:0,2:0}, s); } }catch(e){} updateScoreboard(); }
-
-// --- SIMPLE AI (win/block/center/random) ---
-function aiMove(){
-  // small delay to feel natural
-  setTimeout(()=>{
-    if(isGameOver) return;
-    // gather valid columns
-    const valid = [];
-    for(let c=0;c<COLS;c++) if(board[0][c]===0) valid.push(c);
-
-    // helper to simulate drop
-    const simulateDrop = (col)=>{
-      for(let r=ROWS-1;r>=0;r--) if(board[r][col]===0) return {r, c:col};
-      return null;
-    };
-
-    // 1) can AI win immediately?
-    for(const c of valid){
-      const pos = simulateDrop(c); if(!pos) continue;
-      board[pos.r][pos.c]=2;
-      const win = checkWin(pos.r,pos.c,2);
-      board[pos.r][pos.c]=0;
-      if(win) { handleDrop(c, true); return; }
-    }
-    // 2) block opponent immediate win
-    for(const c of valid){
-      const pos = simulateDrop(c); if(!pos) continue;
-      board[pos.r][pos.c]=1;
-      const oppWin = checkWin(pos.r,pos.c,1);
-      board[pos.r][pos.c]=0;
-      if(oppWin){ handleDrop(c, true); return; }
-    }
-    // 3) else pick center if available
-    const center = 3;
-    if(valid.includes(center)){ handleDrop(center, true); return; }
-    // 4) else pick random valid
-    const choice = valid[Math.floor(Math.random()*valid.length)];
-    handleDrop(choice, true);
-  }, 420);
+function switchPlayer() {
+  currentPlayer = currentPlayer === 1 ? 2 : 1;
 }
 
-// events
-document.getElementById('newGame').onclick = ()=> initBoard();
-document.getElementById('resetScore').onclick = ()=>{ scores={1:0,2:0}; saveScores(); updateScoreboard(); };
-gridEl.addEventListener('click', e=>{ const cell = e.target.closest('.cell'); if(!cell) return; const c = parseInt(cell.dataset.c); if(!isNaN(c)) handleDrop(c); });
-window.addEventListener('keydown', e=>{ if(e.key>='1' && e.key<='7') handleDrop(parseInt(e.key)-1); });
+/* ===============================
+   TURNO
+================================ */
+function updateTurnDisplay() {
+  turnDotEl.style.background = currentPlayer === 1 ? color1 : color2;
+  updateLabels();
+}
 
-// initialize
-initBoard();
+function updateLabels() {
+  label1El.textContent = name1El.value || "Player 1";
+  label2El.textContent = name2El.value || "Player 2";
+  turnNameEl.textContent = currentPlayer === 1 ? name1El.value || "Player 1" : name2El.value || "Player 2";
+}
+
+/* ===============================
+   MENSAJE FLOTANTE
+================================ */
+function showFloatingMessage(msg) {
+  const div = document.createElement("div");
+  div.className = "floating-message";
+  div.textContent = msg;
+  document.body.appendChild(div);
+
+  requestAnimationFrame(() => {
+    div.style.top = "20px";
+  });
+
+  setTimeout(() => {
+    div.style.top = "-60px";
+    setTimeout(() => div.remove(), 500);
+  }, 2500);
+}
+
+/* ===============================
+   DETECCIÓN DE GANADOR
+================================ */
+function checkWinner(r, c, p) {
+  const directions = [
+    [0, 1], [1, 0], [1, 1], [1, -1]
+  ];
+  return directions.some(dir => countDirection(r, c, p, dir) >= 4);
+}
+
+function countDirection(r, c, p, [dr, dc]) {
+  return countOneSide(r, c, p, dr, dc) + countOneSide(r, c, p, -dr, -dc) + 1;
+}
+
+function countOneSide(r, c, p, dr, dc) {
+  let count = 0;
+  let rr = r + dr;
+  let cc = c + dc;
+
+  while (rr >= 0 && rr < ROWS && cc >= 0 && cc < COLS && board[rr][cc] === p) {
+    count++;
+    rr += dr;
+    cc += dc;
+  }
+  return count;
+}
+
+function isBoardFull() {
+  return board.every(row => row.every(cell => cell !== 0));
+}
+
+/* ===============================
+   FIN DE PARTIDA
+================================ */
+function handleWin(player) {
+  gameEnded = true;
+  scores[player]++;
+  updateScoreboard();
+
+  const winnerName = player === 1 ? name1El.value || "Player 1" : name2El.value || "Player 2";
+  showFloatingMessage(`${winnerName} wins!`);
+}
+
+function handleDraw() {
+  gameEnded = true;
+  showFloatingMessage("Draw");
+}
+
+function updateScoreboard() {
+  score1El.textContent = scores[1];
+  score2El.textContent = scores[2];
+}
+
+/* ===============================
+   IA SIMPLE
+================================ */
+function aiMove() {
+  if (gameEnded) return;
+  const valid = getValidColumns();
+
+  const winMove = findWinningMove(2, valid);
+  if (winMove !== null) return dropPiece(winMove, true);
+
+  const blockMove = findWinningMove(1, valid);
+  if (blockMove !== null) return dropPiece(blockMove, true);
+
+  if (valid.includes(3)) return dropPiece(3, true);
+
+  const randomCol = valid[Math.floor(Math.random() * valid.length)];
+  dropPiece(randomCol, true);
+}
+
+function getValidColumns() {
+  const result = [];
+  for (let c = 0; c < COLS; c++) if (board[0][c] === 0) result.push(c);
+  return result;
+}
+
+function findWinningMove(player, cols) {
+  for (const c of cols) {
+    const r = findAvailableRow(c);
+    if (r === null) continue;
+
+    board[r][c] = player;
+    const isWin = checkWinner(r, c, player);
+    board[r][c] = 0;
+    if (isWin) return c;
+  }
+  return null;
+}
+
+/* ===============================
+   EVENTOS
+================================ */
+document.getElementById("newGame").onclick = startGame;
+document.getElementById("resetScore").onclick = () => {
+  scores = { 1: 0, 2: 0 };
+  updateScoreboard();
+};
+
+gridEl.onclick = (e) => {
+  const cell = e.target.closest(".cell");
+  if (!cell) return;
+  const col = [...cell.parentNode.children].indexOf(cell);
+  dropPiece(col);
+};
+
+window.onkeydown = (e) => {
+  if (e.key >= "1" && e.key <= "7") dropPiece(parseInt(e.key) - 1);
+};
+
+/* ===============================
+   INICIAR EL JUEGO
+================================ */
+startGame();
